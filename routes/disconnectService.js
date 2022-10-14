@@ -7,13 +7,20 @@ router.post("/", async function (req, res, next) {
     const { serviceId } = req.body;
     if (!serviceId) {
       res.status(400).json({
-        status: "failure",
+        status: "error",
         data: null,
         message: "Error with request information",
       });
       return;
     }
     const user = req.user;
+    if (!user) {
+      return res.status(401).json({
+        status: "error",
+        data: null,
+        message: "Please log in first!",
+      });
+    }
 
     let removed = false;
     user.credentials.forEach((credential, i, allCredentials) => {
@@ -36,7 +43,7 @@ router.post("/", async function (req, res, next) {
         return;
       } else {
         res.status(500).json({
-          status: "failure",
+          status: "error",
           data: null,
           message: "Error connecting with DB",
         });
@@ -44,7 +51,7 @@ router.post("/", async function (req, res, next) {
       }
     } else {
       res.status(400).json({
-        status: "failure",
+        status: "error",
         data: null,
         message: "Attempted to disconnect a non-connected service",
       });
@@ -53,7 +60,7 @@ router.post("/", async function (req, res, next) {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      status: "failure",
+      status: "error",
       data: null,
       message: "Something unexplainable went wrong",
     });
