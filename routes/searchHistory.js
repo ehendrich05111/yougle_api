@@ -4,6 +4,7 @@ let userModel = require("../schemas/user");
 
 var router = express.Router();
 
+// TODO: remove this, duplicated in search
 router.post("/store", async function (req, res, next) {
   const { userID, search } = req.body;
 

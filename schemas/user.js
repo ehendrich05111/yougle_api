@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema({
   },
   history: {
     type: [String],
-    required: false,
+    required: true,
   },
   credentials: {
     type: [CredentialSchema],
@@ -54,8 +54,17 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
   tempKey: {
-    type: String,
-    required: false,
+    type: {
+      code: String,
+      expiresAt: {
+        type: Date,
+        default: () =>
+          new Date(
+            new Date().getTime() +
+              60000 * parseInt(process.env.PASSWORD_RESET_EXPIRATION_MINUTES)
+          ),
+      },
+    },
   },
 });
 

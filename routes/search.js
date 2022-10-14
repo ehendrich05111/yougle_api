@@ -1,7 +1,8 @@
 var express = require("express");
 var router = express.Router();
 const { WebClient } = require("@slack/web-api");
-let adminDataModel = require("../schemas/adminData");
+const adminDataModel = require("../schemas/adminData");
+const User = require("../schemas/user");
 
 async function getSlackMessages(token, teamName, query) {
   // TODO: pagination
@@ -32,7 +33,7 @@ async function getSlackMessages(token, teamName, query) {
       teamName: teamName,
       text: match.text,
       channel: match.channel.name,
-      timestamp: match.ts,
+      timestamp: parseInt(match.ts),
       username: match.username,
       permalink: match.permalink,
     };
@@ -78,6 +79,24 @@ router.get("/", async function (req, res, next) {
 
   const endTime = new Date().getTime();
   const searchTime = endTime - startTime;
+
+  // update search history
+  try {
+    await User.updateOne(
+      {
+        _id: user._id,
+      },
+      {
+        $push: { history: { $each: [queryText], $slice: -100 } },
+      }
+    );
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: `Error updating history: ${error.message}`,
+    });
+  }
 
   return res.status(200).json({
     status: "success",

@@ -28,8 +28,11 @@ router.post("/requestReset", async function (req, res, next) {
       return;
     }
     const tempKey = crypto.randomBytes(5).toString("hex");
-    // TODO: add expiration date
-    let updateResult = await userModel.updateOne({ email }, { tempKey });
+
+    let updateResult = await userModel.updateOne(
+      { email },
+      { tempKey: { code: tempKey } }
+    );
     if (!updateResult.modifiedCount) {
       res.status(500).json({
         status: "failure",
@@ -91,7 +94,6 @@ router.post("/", async function (req, res, next) {
     }
 
     const user = await userModel.findOne({ email });
-    let result;
     if (!user) {
       res.status(400).json({
         status: "failure",
@@ -101,11 +103,18 @@ router.post("/", async function (req, res, next) {
       return;
     }
 
-    if (user.tempKey !== code) {
+    if (user.tempKey.code !== code) {
       return res.status(400).json({
         status: "failure",
         data: null,
         message: "Incorrect reset code",
+      });
+    }
+    if (new Date() > user.tempKey.expiresAt) {
+      return res.status(400).json({
+        status: "failure",
+        data: null,
+        message: "Reset code has expired",
       });
     }
 
@@ -118,18 +127,12 @@ router.post("/", async function (req, res, next) {
       });
     }
 
-    result = await userModel.updateOne(
+    await userModel.updateOne(
       { email },
       { password: bcrypt.hashSync(newPassword, 10) }
     );
-    if (!result.modifiedCount) {
-      res.status(400).json({
-        status: "failure",
-        data: null,
-        message: "New password can not be the same as old password",
-      });
-      return;
-    }
+
+    await userModel.updateOne({ email }, { $unset: { tempKey: "" } });
     res.status(200).json({
       status: "success",
       data: null,
