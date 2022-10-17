@@ -14,7 +14,7 @@ router.post("/requestReset", async function (req, res, next) {
       res.status(400).json({
         status: "failure",
         data: null,
-        message: "Error with users information",
+        message: "Error with user information",
       });
       return;
     }
