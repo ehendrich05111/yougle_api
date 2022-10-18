@@ -10,7 +10,7 @@ async function connectSlack(user, code, res) {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: `client_id=${process.env.SLACK_CLIENT_ID}&client_secret=${process.env.SLACK_CLIENT_SECRET}&code=${code}redirect_uri=https%3A%2F%2Fyougle.herokuapp.com%2Fslack_callback`,
+      body: `client_id=${process.env.SLACK_CLIENT_ID}&client_secret=${process.env.SLACK_CLIENT_SECRET}&code=${code}&redirect_uri=https%3A%2F%2Fyougle.herokuapp.com%2Fslack_callback`,
     });
 
     const data = await response.json();
