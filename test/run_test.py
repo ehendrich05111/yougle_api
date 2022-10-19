@@ -9,6 +9,7 @@ test_suites = [
     "signIn-test.py",
     "signUp-test.py",
     "changeName-test.py",
+    "changeEmail-test.py",
 ]
 
 command = "python -m unittest "

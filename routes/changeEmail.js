@@ -3,10 +3,10 @@ let userModel = require("../schemas/user");
 var router = express.Router();
 
 router.post("/", async function (req, res, next) {
+  //validate email format on front end
   try {
-    //do not send API request if names do not change
-    const { userID, newFirstName, newLastName } = req.body;
-    if (!userID || (!newFirstName && !newLastName)) {
+    const { userID, newEmail } = req.body;
+    if (!userID || !newEmail) {
       return res.status(400).json({
         status: "error",
         data: null,
@@ -14,9 +14,14 @@ router.post("/", async function (req, res, next) {
       });
     }
 
-    const user = await userModel.findOne({
-      _id: userID,
-    });
+    const [user, userWithNewEmail] = await Promise.all([
+      userModel.findOne({
+        _id: userID,
+      }),
+      userModel.findOne({
+        email: newEmail,
+      }),
+    ]);
 
     if (!user) {
       return res.status(400).json({
@@ -26,37 +31,26 @@ router.post("/", async function (req, res, next) {
       });
     }
 
-    let result;
-    if (newFirstName && newLastName) {
-      result = await userModel.updateOne(
-        { _id: userID },
-        {
-          firstName: newFirstName,
-          lastName: newLastName,
-        }
-      );
-    } else if (newFirstName) {
-      result = await userModel.updateOne(
-        { _id: userID },
-        {
-          firstName: newFirstName,
-        }
-      );
-    } else {
-      result = await userModel.updateOne(
-        { _id: userID },
-        {
-          lastName: newLastName,
-        }
-      );
+    if (userWithNewEmail) {
+      return res.status(400).json({
+        status: "error",
+        data: null,
+        message: "A user with that email already exists",
+      });
     }
+
+    const result = await userModel.updateOne(
+      { _id: userID },
+      {
+        email: newEmail,
+      }
+    );
 
     if (result.modifiedCount) {
       return res.status(200).json({
         status: "success",
         data: {
-          newFirstName,
-          newLastName,
+          newEmail,
         },
         message: null,
       });
