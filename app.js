@@ -24,6 +24,7 @@ var getServicesRouter = require("./routes/getServices");
 var saveMessageRouter = require("./routes/saveMessage");
 var searchHistoryRouter = require("./routes/searchHistory");
 var searchRouter = require("./routes/search");
+var changeNameRouter = require("./routes/changeName");
 var app = express();
 
 var userModel = require("./schemas/user");
@@ -94,6 +95,7 @@ app.use("/services", getServicesRouter);
 app.use("/saveMessage", saveMessageRouter);
 app.use("/searchHistory", searchHistoryRouter);
 app.use("/search", searchRouter);
+app.use("/changeName", changeNameRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
