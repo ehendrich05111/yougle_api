@@ -5,8 +5,8 @@ var router = express.Router();
 router.post("/", async function (req, res, next) {
   try {
     //do not send API request if names do not change
-    const { userID, newFirstName, newLastName } = req.body;
-    if (!userID || (!newFirstName && !newLastName)) {
+    const { newFirstName, newLastName } = req.body;
+    if (!newFirstName && !newLastName) {
       return res.status(400).json({
         status: "error",
         data: null,
@@ -14,49 +14,50 @@ router.post("/", async function (req, res, next) {
       });
     }
 
-    const user = await userModel.findOne({
-      _id: userID,
-    });
+    let user = req.user;
 
     if (!user) {
-      return res.status(400).json({
+      return res.status(401).json({
         status: "error",
         data: null,
-        message: "No user with that ID",
+        message: "Please login first!",
       });
     }
 
     let result;
     if (newFirstName && newLastName) {
       result = await userModel.updateOne(
-        { _id: userID },
+        { _id: user._id },
         {
           firstName: newFirstName,
           lastName: newLastName,
         }
       );
+      user.firstName = newFirstName;
+      user.lastName = newLastName;
     } else if (newFirstName) {
       result = await userModel.updateOne(
-        { _id: userID },
+        { _id: user._id },
         {
           firstName: newFirstName,
         }
       );
+      user.firstName = newFirstName;
     } else {
       result = await userModel.updateOne(
-        { _id: userID },
+        { _id: user._id },
         {
           lastName: newLastName,
         }
       );
+      user.lastName = newLastName;
     }
 
     if (result.modifiedCount) {
       return res.status(200).json({
         status: "success",
         data: {
-          newFirstName,
-          newLastName,
+          user,
         },
         message: null,
       });
