@@ -65,7 +65,7 @@ router.post("/", async function (req, res, next) {
     if (result.modifiedCount) {
       return res.status(200).json({
         status: "success",
-        data: null,
+        data: user,
         message: null,
       });
     } else {
