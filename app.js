@@ -26,6 +26,7 @@ var searchHistoryRouter = require("./routes/searchHistory");
 var searchRouter = require("./routes/search");
 var changeNameRouter = require("./routes/changeName");
 var changeEmailRouter = require("./routes/changeEmail");
+var changePasswordRouter = require("./routes/changePassword");
 var app = express();
 
 var userModel = require("./schemas/user");
@@ -98,6 +99,7 @@ app.use("/searchHistory", searchHistoryRouter);
 app.use("/search", searchRouter);
 app.use("/changeName", changeNameRouter);
 app.use("/changeEmail", changeEmailRouter);
+app.use("/changePassword", changePasswordRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
