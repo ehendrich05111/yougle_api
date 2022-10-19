@@ -5,8 +5,8 @@ var router = express.Router();
 router.post("/", async function (req, res, next) {
   //validate email format on front end
   try {
-    const { userID, newEmail } = req.body;
-    if (!userID || !newEmail) {
+    const { newEmail } = req.body;
+    if (!newEmail) {
       return res.status(400).json({
         status: "error",
         data: null,
@@ -14,20 +14,15 @@ router.post("/", async function (req, res, next) {
       });
     }
 
-    const [user, userWithNewEmail] = await Promise.all([
-      userModel.findOne({
-        _id: userID,
-      }),
-      userModel.findOne({
-        email: newEmail,
-      }),
-    ]);
+    const userWithNewEmail = await userModel.findOne({ email: newEmail });
+
+    let user = req.user;
 
     if (!user) {
       return res.status(400).json({
         status: "error",
         data: null,
-        message: "No user with that ID",
+        message: "Please login first!",
       });
     }
 
@@ -40,17 +35,18 @@ router.post("/", async function (req, res, next) {
     }
 
     const result = await userModel.updateOne(
-      { _id: userID },
+      { _id: user._id },
       {
         email: newEmail,
       }
     );
 
     if (result.modifiedCount) {
+      user.email = newEmail;
       return res.status(200).json({
         status: "success",
         data: {
-          newEmail,
+          user,
         },
         message: null,
       });

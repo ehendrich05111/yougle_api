@@ -8,52 +8,49 @@ import pymongo
 from decouple import config
 
 class Test_Backend(unittest.TestCase):
+    TEST_USER_EMAIL = "TEST_EMAIL"
 
     @classmethod
     def setUpClass(self) -> None:
-        self.base_url = "http://localhost:9000/changeEmail"
+        self.base_url = "http://localhost:9000/changeEmail/"
         connectionString = config("CONNECTION_STRING")
         client = pymongo.MongoClient(connectionString)
         db = client['test']
         self.collection = db['users']
+
+        self.session = requests.Session()
+        self.session.post("http://localhost:9000/signUp", {"email": self.TEST_USER_EMAIL, "password": "qwertyuiop1!", "firstName": "firstName", "lastName": "lastName"})
+        resp = self.session.post("http://localhost:9000/signIn", {"email": self.TEST_USER_EMAIL, "password": "qwertyuiop1!"})
+        token = resp.json()['data']['token']
+
+        self.session.headers.update({'Authorization': 'JWT ' + token})
+
+    @classmethod
+    def tearDownClass(self) -> None:
+        self.collection.delete_one({"email": self.TEST_USER_EMAIL})
+        self.collection.delete_one({"email": "test change email"})
+        self.session.close()
 
     def testEmptyBody(self):
         response = requests.post(self.base_url, {})
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["message"], "Error with request information")
 
-    def testNonExistentId(self):
-        userID = bson.ObjectId("111111111111111111111111")
-        response = requests.post(self.base_url, {"userID": userID, "newEmail": "test email"})
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["message"], "No user with that ID")
-
     def testEmailAlreadyUsed(self):
         try:
             userID1 = bson.ObjectId(''.join(random.choices(string.digits, k = 24)))
-            userID2 = bson.ObjectId(''.join(random.choices(string.digits, k = 24)))
-            self.collection.insert_one({"_id": userID1, "email": "test email"})
-            self.collection.insert_one({"_id": userID2, "email": "existing email"})
-            response = requests.post(self.base_url, {"userID": userID1, "newEmail": "existing email"})
+            self.collection.insert_one({"_id": userID1, "email": "existing email"})
+            response = self.session.post(self.base_url, {"newEmail": "existing email"})
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.json()["message"], "A user with that email already exists")
             self.collection.delete_one({"_id": userID1})
-            self.collection.delete_one({"_id": userID2})
         except:
             self.collection.delete_one({"_id": userID1})
-            self.collection.delete_one({"_id": userID2})
             self.assertTrue(False)
 
     def testSuccess(self):
-        try:
-            userID = bson.ObjectId(''.join(random.choices(string.digits, k = 24)))
-            self.collection.insert_one({"_id": userID, "email": "test email"})
-            response = requests.post(self.base_url, {"userID": userID, "newEmail": "new email"})
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["data"]["newEmail"], "new email")
-            test_user = self.collection.find_one({"_id": userID})
-            self.assertEqual(test_user["email"], "new email")
-            self.collection.delete_one({"_id": userID})
-        except:
-            self.collection.delete_one({"_id": userID})
-            self.assertTrue(False)
+        response = self.session.post(self.base_url, {"newEmail": "test change email"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["user"]["email"], "test change email")
+        test_user = self.collection.find_one({"email": "test change email"})
+        self.assertEqual(test_user["email"], "test change email")
