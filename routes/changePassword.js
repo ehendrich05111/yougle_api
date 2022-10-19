@@ -7,8 +7,8 @@ const { checkPassword } = require("../utils/auth");
 router.post("/", async function (req, res, next) {
   //validate password format on front end
   try {
-    const { userID, oldPassword, newPassword } = req.body;
-    if (!userID || !oldPassword || !newPassword) {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
       return res.status(400).json({
         status: "error",
         data: null,
@@ -16,15 +16,13 @@ router.post("/", async function (req, res, next) {
       });
     }
 
-    const user = await userModel.findOne({
-      _id: userID,
-    });
+    const user = req.user;
 
     if (!user) {
       return res.status(400).json({
         status: "error",
         data: null,
-        message: "No user with that ID",
+        message: "Please log in first!",
       });
     }
 
@@ -58,7 +56,7 @@ router.post("/", async function (req, res, next) {
     const newHashedPassword = bcrypt.hashSync(newPassword, 10);
 
     const result = await userModel.updateOne(
-      { _id: userID },
+      { _id: user._id },
       {
         password: newHashedPassword,
       }
