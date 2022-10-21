@@ -5,7 +5,7 @@ const CredentialSchema = new mongoose.Schema({
     type: Boolean,
     required: true,
   },
-  service: { type: String, enum: ["slack"], required: true },
+  service: { type: String, enum: ["slack", "Teams"], required: true },
   data: mongoose.Schema.Types.Mixed,
 });
 

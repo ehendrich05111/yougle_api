@@ -1,7 +1,27 @@
 const express = require("express");
 const fetch = require("node-fetch");
-
+var msal = require('@azure/msal-node');
 const router = express.Router();
+const userModel = require("../schemas/user");
+
+
+const msalConfig = {
+  auth: {
+    clientId: process.env.TEAMS_APP_ID,
+    authority: "https://login.microsoftonline.com/" + process.env.TEAMS_TENANT_ID,
+    clientSecret: process.env.TEAMS_APP_SECRET_VALUE
+  },
+  loggerOptions: {
+    loggerCallback(loglevel, message, containsPii) {
+        console.log(message);
+    },
+    piiLoggingEnabled: false,
+    logLevel: "Info",
+  } 
+}
+
+const msalInstance = new msal.ConfidentialClientApplication(msalConfig);
+
 
 async function connectSlack(user, code, res) {
   try {
@@ -62,6 +82,68 @@ async function connectSlack(user, code, res) {
     message: `Successfully connected to Slack`,
   });
 }
+
+router.post("/teamsRedirect", async function (req, res, next){
+  if(req.body.state){
+    console.log(req);
+    //console.log(req.body.state);
+    //const state = JSON.parse(cryptoProvider.base64Decode(req.body.state));
+    //console.log(req.session);
+    //console.log(req.body);
+
+    authCodeRequest = {
+      redirectUri: 'http://localhost:9000/connectService/teamsRedirect',
+      code: req.body.code,
+      scopes: [ 'User.Read', 'Team.ReadBasic.All'],
+    }
+    const tokenResponse = await msalInstance.acquireTokenByCode(authCodeRequest);
+    console.log("Access token:");
+    console.log(tokenResponse);
+
+    try{
+
+      //if the user already has an access token, just replace it
+
+      let email = tokenResponse.account.username;
+      const user = await userModel.findOne({ email });
+      if (!user) {
+        res.redirect("http://localhost:3000/login");
+      }
+      if (
+        user.credentials && user.credentials.some((cred) => cred.service == "Teams")
+      ) {
+        
+        let index = user.credentials.findIndex((cred) => cred.service == "Teams");
+        user.credentials[index].data.accessToken = tokenResponse.accessToken;
+        user.credentials[index].data.id = tokenResponse.uniqueId;
+        user.credentials[index].data.teamName = ""
+        user.markModified("credentials");
+        await user.save();
+        console.log("Successfully replaced user access token!!!!!!");
+      } else {
+
+        const credential = {
+          isActive: true,
+          service: "Teams",
+          data: {
+            accessToken: tokenResponse.accessToken,
+            id: tokenResponse.uniqueId,
+            teamName: ""
+          },
+        };
+        user.credentials.push(credential);
+
+        await user.save();
+      }
+    } catch (error) {
+      console.log("There was an error");
+      console.log(error);
+    }
+
+    res.redirect("http://localhost:3000/login", );
+
+  }
+});
 
 router.post("/", async function (req, res, next) {
   if (req.user === undefined) {
