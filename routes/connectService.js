@@ -1,27 +1,24 @@
 const express = require("express");
 const fetch = require("node-fetch");
-var msal = require('@azure/msal-node');
+var msal = require("@azure/msal-node");
 const router = express.Router();
-const userModel = require("../schemas/user");
-
 
 const msalConfig = {
   auth: {
     clientId: process.env.TEAMS_APP_ID,
-    authority: "https://login.microsoftonline.com/" + process.env.TEAMS_TENANT_ID,
-    clientSecret: process.env.TEAMS_APP_SECRET_VALUE
+    authority: "https://login.microsoftonline.com/common", // + process.env.TEAMS_TENANT_ID,
+    clientSecret: process.env.TEAMS_APP_SECRET_VALUE,
   },
   loggerOptions: {
     loggerCallback(loglevel, message, containsPii) {
-        console.log(message);
+      console.log(message);
     },
     piiLoggingEnabled: false,
     logLevel: "Info",
-  } 
-}
+  },
+};
 
 const msalInstance = new msal.ConfidentialClientApplication(msalConfig);
-
 
 async function connectSlack(user, code, res) {
   try {
@@ -83,67 +80,62 @@ async function connectSlack(user, code, res) {
   });
 }
 
-router.post("/teamsRedirect", async function (req, res, next){
-  if(req.body.state){
-    console.log(req);
-    //console.log(req.body.state);
-    //const state = JSON.parse(cryptoProvider.base64Decode(req.body.state));
-    //console.log(req.session);
-    //console.log(req.body);
+async function connectTeams(user, code, res) {
+  authCodeRequest = {
+    redirectUri: "https://yougle.local.gd:3000/teams_callback",
+    code: code,
+    scopes: [
+      "User.Read",
+      "Chat.Read",
+      "Chat.ReadWrite",
+      // "ChannelMessage.Read.All",
+    ],
+  };
 
-    authCodeRequest = {
-      redirectUri: 'http://localhost:9000/connectService/teamsRedirect',
-      code: req.body.code,
-      scopes: [ 'User.Read', 'Team.ReadBasic.All'],
-    }
-    const tokenResponse = await msalInstance.acquireTokenByCode(authCodeRequest);
-    console.log("Access token:");
-    console.log(tokenResponse);
+  const tokenResponse = await msalInstance.acquireTokenByCode(authCodeRequest);
 
-    try{
+  try {
+    const credential = {
+      isActive: true,
+      service: "teams",
+      data: {
+        id: tokenResponse.uniqueId,
+        accessToken: tokenResponse.accessToken,
+        teamName: tokenResponse.account.username,
+      },
+    };
 
-      //if the user already has an access token, just replace it
-
-      let email = tokenResponse.account.username;
-      const user = await userModel.findOne({ email });
-      if (!user) {
-        res.redirect("http://localhost:3000/login");
-      }
-      if (
-        user.credentials && user.credentials.some((cred) => cred.service == "Teams")
-      ) {
-        
-        let index = user.credentials.findIndex((cred) => cred.service == "Teams");
-        user.credentials[index].data.accessToken = tokenResponse.accessToken;
-        user.credentials[index].data.id = tokenResponse.uniqueId;
-        user.credentials[index].data.teamName = ""
-        user.markModified("credentials");
-        await user.save();
-        console.log("Successfully replaced user access token!!!!!!");
-      } else {
-
-        const credential = {
-          isActive: true,
-          service: "Teams",
-          data: {
-            accessToken: tokenResponse.accessToken,
-            id: tokenResponse.uniqueId,
-            teamName: ""
-          },
-        };
-        user.credentials.push(credential);
-
-        await user.save();
-      }
-    } catch (error) {
-      console.log("There was an error");
-      console.log(error);
+    if (
+      user.credentials &&
+      user.credentials.some(
+        (cred) =>
+          cred.service === "teams" && cred.data.id === credential.data.id
+      )
+    ) {
+      return res.status(400).json({
+        status: "error",
+        data: null,
+        message: "Teams account with ID already connected",
+      });
     }
 
-    res.redirect("http://localhost:3000/login", );
-
+    user.credentials.push(credential);
+    await user.save();
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: error.message,
+    });
   }
-});
+
+  console.log(user.credentials);
+  return res.status(200).json({
+    status: "success",
+    data: null,
+    message: `Successfully connected to Teams`,
+  });
+}
 
 router.post("/", async function (req, res, next) {
   if (req.user === undefined) {
@@ -158,6 +150,9 @@ router.post("/", async function (req, res, next) {
   if (serviceName === "slack") {
     const { code } = req.body;
     return await connectSlack(req.user, code, res);
+  } else if (serviceName === "teams") {
+    const { code } = req.body;
+    return await connectTeams(req.user, code, res);
   } else {
     return res.status(400).json({
       status: "error",

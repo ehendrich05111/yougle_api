@@ -5,52 +5,59 @@ const adminDataModel = require("../schemas/adminData");
 const User = require("../schemas/user");
 const fetch = require("node-fetch");
 
-
-async function getTeamsMessages(token, id, query){
-  const chats_response = await fetch("https://graph.microsoft.com/v1.0/me/chats", {
-    method: "GET",
-    headers: {
-      "Authorization": token
+async function getTeamsMessages(token, id, query) {
+  const chats_response = await fetch(
+    "https://graph.microsoft.com/v1.0/me/chats",
+    {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
     }
-  });
+  );
   const chats = await chats_response.json();
-  if(!chats_response.ok){
-    if(chats.error.code === "InvalidAuthenticationToken"){
-      throw new Error("Expired token. You may need to re-add a token by going to the Add Services page.")
+  if (!chats_response.ok) {
+    if (chats.error.code === "InvalidAuthenticationToken") {
+      throw new Error(
+        "Expired token. You may need to re-add a token by going to the Add Services page."
+      );
     }
   }
-  let filtered_messages = []
-  for(const chat of chats.value){
-
+  let filtered_messages = [];
+  for (const chat of chats.value) {
     let chat_id = chat.id;
-    if(chat.chatType == "oneOnOne"){
-
-      let other_person = ""
-      const chat_members = await fetch("https://graph.microsoft.com/v1.0/me/chats/" + chat_id + "/members", {
-        method: "GET",
-        headers: {
-          "Authorization": token
+    if (chat.chatType == "oneOnOne") {
+      let other_person = "";
+      const chat_members = await fetch(
+        "https://graph.microsoft.com/v1.0/me/chats/" + chat_id + "/members",
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+          },
         }
-      })
-      const chat_members_json = await chat_members.json()
-      for(const chat_member of chat_members_json.value){
+      );
+      const chat_members_json = await chat_members.json();
+      for (const chat_member of chat_members_json.value) {
         //there are really only 2 people in a oneOnOne chat
-        if(chat_member.userId != id){
-          other_person = chat_member.displayName
+        if (chat_member.userId != id) {
+          other_person = chat_member.displayName;
           break;
         }
       }
-      
 
-      const chat_messages = await fetch("https://graph.microsoft.com/v1.0/me/chats/" + chat_id + "/messages", {
-        method: "GET",
-        headers: {
-          "Authorization": token,
+      const chat_messages = await fetch(
+        "https://graph.microsoft.com/v1.0/me/chats/" + chat_id + "/messages",
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+          },
         }
-      })
-      const messages = await chat_messages.json()
+      );
+      const messages = await chat_messages.json();
       messages.value.forEach((message) => {
-        if(message.from !== null && message.body.content.includes(query)){
+        if (message.from !== null && message.body.content.includes(query)) {
           author = message.from.user.displayName;
           filtered_messages.push({
             teamName: "Microsoft Teams",
@@ -59,8 +66,8 @@ async function getTeamsMessages(token, id, query){
             timestamp: Date.parse(message.createdDateTime) / 1000,
             username: message.from.user.displayName,
             permalink: message.webUrl,
-            service: "Teams"
-          })
+            service: "teams",
+          });
         }
       });
     }
@@ -101,7 +108,7 @@ async function getSlackMessages(token, teamName, query) {
       timestamp: parseInt(match.ts),
       username: match.username,
       permalink: match.permalink,
-      service: "Slack"
+      service: "Slack",
     };
   });
 }
@@ -134,7 +141,7 @@ router.get("/", async function (req, res, next) {
         cred.data.teamName,
         queryText
       );
-    } else if (cred.service === "Teams" && cred.isActive) {
+    } else if (cred.service === "teams" && cred.isActive) {
       return getTeamsMessages(cred.data.accessToken, cred.data.id, queryText);
     }
     return Promise((resolve) => resolve([]));
