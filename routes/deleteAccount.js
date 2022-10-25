@@ -4,17 +4,17 @@ const jwt = require("jsonwebtoken");
 
 var router = express.Router();
 
-router.post("/", async function(req, res, next){
-    const { email } = req.body;
-    if(!email){
-        return res.status(400).json({
+router.delete("/profile", async function(req, res, next){
+
+    if(req.user === undefined){
+        return res.status(401).json({
             status: "error",
             data: null,
-            message: "Missing email in Delete Request API call"
+            message: "Please log in first."
         })
     }
     let user = await userModel.findOne(({
-        email: email
+        email: req.user.email
     }))
     if(!user){
         return res.status(401).json({
@@ -25,7 +25,7 @@ router.post("/", async function(req, res, next){
     }
 
     let deleted = await userModel.deleteOne({
-        email: email
+        email: req.user.email
     })
     if(!deleted || deleted.deletedCount != 1){
         return res.status(400).json({
