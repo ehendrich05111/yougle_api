@@ -4,6 +4,22 @@ let userModel = require("../schemas/user");
 
 var router = express.Router();
 
+router.get("/retrieve", async function (req, res, next) {
+  if(req.user === undefined){
+    return res.status(401).json({
+      status: "error",
+      data: null,
+      message: "Please log in first!"
+    })
+  }
+  let searchHistory = await userModel.findOne({"email": req.user.email}, "history");
+  return res.status(200).json({
+    status: "success",
+    data: searchHistory,
+    message: "Successfully retrieved search history"
+  })
+})
+
 // TODO: remove this, duplicated in search
 router.post("/store", async function (req, res, next) {
   const { userID, search } = req.body;
