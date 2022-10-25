@@ -3,6 +3,8 @@ var router = express.Router();
 const { WebClient } = require("@slack/web-api");
 const adminDataModel = require("../schemas/adminData");
 const User = require("../schemas/user");
+const StatsD = require("hot-shots");
+const dogstatsd = new StatsD();
 
 async function getSlackMessages(token, teamName, query) {
   // TODO: pagination
@@ -19,6 +21,8 @@ async function getSlackMessages(token, teamName, query) {
   const endTime = new Date().getTime();
 
   const searchTime = endTime - startTime;
+  dogstatsd.timing("slack.search_time", searchTime);
+
   await adminDataModel.updateOne(
     {
       name: "data",
@@ -69,7 +73,7 @@ router.get("/", async function (req, res, next) {
         queryText
       );
     }
-    return Promise((resolve) => resolve([]));
+    return new Promise((resolve) => resolve([]));
   });
 
   var messages = [];
