@@ -13,6 +13,13 @@ router.get("/retrieve", async function (req, res, next) {
     })
   }
   let searchHistory = await userModel.findOne({"email": req.user.email}, "history");
+  if(!searchHistory){
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: "Error with the database: unable to retrieve search history"
+    })
+  }
   return res.status(200).json({
     status: "success",
     data: searchHistory,
