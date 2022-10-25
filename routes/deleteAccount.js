@@ -6,6 +6,7 @@ var router = express.Router();
 
 router.delete("/profile", async function(req, res, next){
 
+    console.log(req.user)
     if(req.user === undefined){
         return res.status(401).json({
             status: "error",
@@ -13,20 +14,25 @@ router.delete("/profile", async function(req, res, next){
             message: "Please log in first."
         })
     }
+    console.log(req.user);
     let user = await userModel.findOne(({
-        email: req.user.email
+        _id: req.user.id
     }))
     if(!user){
-        return res.status(401).json({
+        return res.status(500).json({
             status: "error",
             data: null,
-            message: "No user with that email exists"
+            message: "Issue with the database encountered: Unable to find a user with that ID"
         })
     }
 
+    console.log(user);
     let deleted = await userModel.deleteOne({
-        email: req.user.email
+        _id: req.user.id
     })
+    console.log(req.user.id)
+    console.log(deleted)
+
     if(!deleted || deleted.deletedCount != 1){
         return res.status(400).json({
             status: "error",
@@ -34,6 +40,7 @@ router.delete("/profile", async function(req, res, next){
             message: "Unable to delete that user"
         })
     }
+    
 
     return res.status(200).json({
         status: "success",
