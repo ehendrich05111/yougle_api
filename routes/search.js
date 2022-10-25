@@ -21,7 +21,7 @@ async function getSlackMessages(token, teamName, query) {
   const endTime = new Date().getTime();
 
   const searchTime = endTime - startTime;
-  dogstatsd.timing("slack.search_time", searchTime);
+  dogstatsd.timing("yougle.slack.search_time", searchTime);
 
   await adminDataModel.updateOne(
     {
@@ -83,6 +83,8 @@ router.get("/", async function (req, res, next) {
 
   const endTime = new Date().getTime();
   const searchTime = endTime - startTime;
+  dogstatsd.timing("yougle.search.time", searchTime);
+  dogstatsd.distribution("yougle.search.results", messages.length);
 
   // update search history
   try {
