@@ -14,7 +14,6 @@ router.delete("/profile", async function(req, res, next){
             message: "Please log in first."
         })
     }
-    console.log(req.user);
     let user = await userModel.findOne(({
         _id: req.user.id
     }))
@@ -26,12 +25,9 @@ router.delete("/profile", async function(req, res, next){
         })
     }
 
-    console.log(user);
     let deleted = await userModel.deleteOne({
         _id: req.user.id
     })
-    console.log(req.user.id)
-    console.log(deleted)
 
     if(!deleted || deleted.deletedCount != 1){
         return res.status(400).json({
