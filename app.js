@@ -27,6 +27,7 @@ var searchRouter = require("./routes/search");
 var changeNameRouter = require("./routes/changeName");
 var changeEmailRouter = require("./routes/changeEmail");
 var changePasswordRouter = require("./routes/changePassword");
+var getProfileRouter = require("./routes/getProfile");
 var deleteAccountRouter = require("./routes/deleteAccount");
 var app = express();
 
@@ -101,6 +102,7 @@ app.use("/search", searchRouter);
 app.use("/changeName", changeNameRouter);
 app.use("/changeEmail", changeEmailRouter);
 app.use("/changePassword", changePasswordRouter);
+app.use("/profile", getProfileRouter);
 app.use("/deleteAccount", deleteAccountRouter);
 
 // catch 404 and forward to error handler
