@@ -12,6 +12,7 @@ test_suites = [
     "changeEmail-test.py",
     "changePassword-test.py",
     "getProfile-test.py",
+    "deleteAccount-test.py",
     "getSearchHistory-test.py"
 ]
 
