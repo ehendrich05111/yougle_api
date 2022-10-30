@@ -12,6 +12,9 @@ test_suites = [
     "changeEmail-test.py",
     "changePassword-test.py",
     "settings-test.py",
+    "getProfile-test.py",
+    "deleteAccount-test.py",
+    "getSearchHistory-test.py"
 ]
 
 command = "python -m unittest "
