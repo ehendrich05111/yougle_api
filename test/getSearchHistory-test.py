@@ -18,10 +18,19 @@ class Test_Backend(unittest.TestCase):
         self.collection = db["users"]
 
         self.session = requests.Session()
-        self.session.post("http://localhost:9000/signup", {"email": self.TEST_USER_EMAIL,
-                          "password": self.TEST_USER_PASSWORD, "firstName": "firstname6", "lastName": "lastname6"})
-        resp = self.session.post("http://localhost:9000/signIn",
-                                 {"email": self.TEST_USER_EMAIL, "password": self.TEST_USER_PASSWORD})
+        self.session.post(
+            "http://localhost:9000/signup",
+            {
+                "email": self.TEST_USER_EMAIL,
+                "password": self.TEST_USER_PASSWORD,
+                "firstName": "firstname6",
+                "lastName": "lastname6",
+            },
+        )
+        resp = self.session.post(
+            "http://localhost:9000/signIn",
+            {"email": self.TEST_USER_EMAIL, "password": self.TEST_USER_PASSWORD},
+        )
         token = resp.json()["data"]["token"]
         self.session.headers.update({"Authorization": "JWT " + token})
 
@@ -32,7 +41,7 @@ class Test_Backend(unittest.TestCase):
 
     def testNoUserProvided(self):
         new_session = requests.Session()
-        fail = new_session.get("http://localhost:9000/searchHistory/retrieve")
+        fail = new_session.get("http://localhost:9000/searchHistory/")
         self.assertEqual(fail.status_code, 401)
         fail = fail.json()
         self.assertEqual(fail["status"], "error")
@@ -44,18 +53,10 @@ class Test_Backend(unittest.TestCase):
         query1 = "testsearch1"
         query2 = "thequickbrownfoxjumpedoverthelazydog"
         query3 = "abracadabra"
-        self.session.get(
-            "http://localhost:9000/search?queryText=" + query1
-        )
-        self.session.get(
-            "http://localhost:9000/search?queryText=" + query2
-        )
-        self.session.get(
-            "http://localhost:9000/search?queryText=" + query3
-        )
-        search_history = self.session.get(
-            "http://localhost:9000/searchHistory/retrieve"
-        )
+        self.session.get("http://localhost:9000/search?queryText=" + query1)
+        self.session.get("http://localhost:9000/search?queryText=" + query2)
+        self.session.get("http://localhost:9000/search?queryText=" + query3)
+        search_history = self.session.get("http://localhost:9000/searchHistory/")
         self.assertEqual(search_history.status_code, 200)
         search_history = search_history.json()
         self.assertEqual(len(search_history["data"]["history"]), 3)
