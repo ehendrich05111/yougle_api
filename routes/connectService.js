@@ -5,12 +5,16 @@ const router = express.Router();
 
 async function connectSlack(user, code, res) {
   try {
+    const redirect_uri =
+      process.env.NODE_ENV === "production"
+        ? "https%3a%2f%2fyougle.herokuapp.com%2fslack_callback"
+        : "https%3a%2f%2fyougle.local.gd%3a3000%2fslack_callback";
     const response = await fetch("https://slack.com/api/oauth.v2.access", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: `client_id=${process.env.SLACK_CLIENT_ID}&client_secret=${process.env.SLACK_CLIENT_SECRET}&code=${code}&redirect_uri=https%3A%2F%2Fyougle.herokuapp.com%2Fslack_callback`,
+      body: `client_id=${process.env.SLACK_CLIENT_ID}&client_secret=${process.env.SLACK_CLIENT_SECRET}&code=${code}&redirect_uri=${redirect_uri}`,
     });
 
     const data = await response.json();
