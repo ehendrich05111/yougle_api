@@ -4,6 +4,7 @@ const { WebClient } = require("@slack/web-api");
 const adminDataModel = require("../schemas/adminData");
 const User = require("../schemas/user");
 const fetch = require("node-fetch");
+const { convert } = require("html-to-text");
 
 async function getTeamsMessages(token, id, query) {
   const chats_response = await fetch(
@@ -60,8 +61,9 @@ async function getTeamsMessages(token, id, query) {
         if (message.from !== null && message.body.content.includes(query)) {
           author = message.from.user.displayName;
           filtered_messages.push({
+            id: message.id,
             teamName: "Microsoft Teams",
-            text: message.body.content,
+            text: convert(message.body.content),
             channel: "Private Chat with " + other_person,
             timestamp: Date.parse(message.createdDateTime) / 1000,
             username: message.from.user.displayName,
@@ -77,7 +79,6 @@ async function getTeamsMessages(token, id, query) {
 
 const StatsD = require("hot-shots");
 const dogstatsd = new StatsD();
-
 
 async function getSlackMessages(token, teamName, query) {
   // TODO: pagination
@@ -106,15 +107,15 @@ async function getSlackMessages(token, teamName, query) {
   );
 
   return result.messages.matches.map((match) => {
-    console.log(match.ts);
     return {
+      id: match.permalink,
       teamName: teamName,
       text: match.text,
       channel: match.channel.name,
       timestamp: parseInt(match.ts),
       username: match.username,
       permalink: match.permalink,
-      service: "Slack",
+      service: "slack",
     };
   });
 }
@@ -140,23 +141,41 @@ router.get("/", async function (req, res, next) {
   const user = req.user;
   const startTime = new Date().getTime();
 
-  const tasks = user.credentials.map((cred) => {
-    if (cred.service === "slack" && cred.isActive) {
-      return getSlackMessages(
-        cred.data.accessToken,
-        cred.data.teamName,
-        queryText
-      );
-    } else if (cred.service === "teams" && cred.isActive) {
-      return getTeamsMessages(cred.data.accessToken, cred.data.id, queryText);
-    }
-    return new Promise((resolve) => resolve([]));
-  });
-
-  var messages = [];
-  for (const task of tasks) {
-    messages = messages.concat(await task);
+  var taskMessages = [];
+  try {
+    taskMessages = await Promise.all(
+      user.credentials.map(async (cred, idx) => {
+        try {
+          if (cred.service === "slack" && cred.isActive) {
+            return await getSlackMessages(
+              cred.data.accessToken,
+              cred.data.teamName,
+              queryText
+            );
+          } else if (cred.service === "teams" && cred.isActive) {
+            return await getTeamsMessages(
+              cred.data.accessToken,
+              cred.data.id,
+              queryText
+            );
+          }
+        } catch (e) {
+          throw new Error(
+            `Error with ${cred.service} API (service index ${idx}): ${e.message}`
+          );
+        }
+        return new Promise((resolve) => resolve([]));
+      })
+    );
+  } catch (e) {
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: e.message,
+    });
   }
+
+  const messages = taskMessages.flat();
 
   const endTime = new Date().getTime();
   const searchTime = endTime - startTime;

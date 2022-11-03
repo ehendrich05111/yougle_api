@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 
 const SearchResultSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: true,
+  },
   service: {
     type: String,
     required: true,
