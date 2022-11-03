@@ -42,13 +42,13 @@ class Test_Backend(unittest.TestCase):
         self.collection.delete_one({"email": self.TEST_USER_EMAIL})
         self.session.close()
 
-    def testFailure(self):
+    def testFailureGet(self):
         self.session.close()
         response = requests.get(self.base_url)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["message"], "Please log in first!")
 
-    def testSuccess(self):
+    def testSuccessGet(self):
         response = self.session.get(self.base_url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -60,3 +60,30 @@ class Test_Backend(unittest.TestCase):
                 "darkMode": False,
             },
         )
+
+    def testFailurePut(self):
+        self.session.close()
+        response = requests.put(self.base_url)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["message"], "Please log in first!")
+
+    def testEmptyBodyPut(self):
+        response = self.session.put(self.base_url)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], "Please provide settings")
+
+    def testInvalidSettingsPut(self):
+        response = self.session.put(self.base_url, {"test": "nothing"})
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.json()["message"].startswith("ValidationError"))
+
+    def testSuccessPut(self):
+        response = self.session.put(self.base_url, {
+            "trackHistory": "1",
+            "staySignedIn": "true",
+            "deepSearch": "true",
+            "darkMode": "true",
+        })
+        self.assertEqual(response.status_code, 200)
+        user = self.collection.find_one({"email": self.TEST_USER_EMAIL})
+        self.assertEqual(user["settings"]["darkMode"], True)
