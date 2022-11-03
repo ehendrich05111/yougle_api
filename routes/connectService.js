@@ -1,7 +1,24 @@
 const express = require("express");
 const fetch = require("node-fetch");
-
+var msal = require("@azure/msal-node");
 const router = express.Router();
+
+const msalConfig = {
+  auth: {
+    clientId: process.env.TEAMS_APP_ID,
+    authority: "https://login.microsoftonline.com/common", // + process.env.TEAMS_TENANT_ID,
+    clientSecret: process.env.TEAMS_APP_SECRET_VALUE,
+  },
+  loggerOptions: {
+    loggerCallback(loglevel, message, containsPii) {
+      console.log(message);
+    },
+    piiLoggingEnabled: false,
+    logLevel: "Info",
+  },
+};
+
+const msalInstance = new msal.ConfidentialClientApplication(msalConfig);
 
 async function connectSlack(user, code, res) {
   try {
@@ -63,6 +80,63 @@ async function connectSlack(user, code, res) {
   });
 }
 
+async function connectTeams(user, code, res) {
+  authCodeRequest = {
+    redirectUri: "https://yougle.local.gd:3000/teams_callback",
+    code: code,
+    scopes: [
+      "User.Read",
+      "Chat.Read",
+      "Chat.ReadWrite",
+      // "ChannelMessage.Read.All",
+    ],
+  };
+
+  const tokenResponse = await msalInstance.acquireTokenByCode(authCodeRequest);
+
+  try {
+    const credential = {
+      isActive: true,
+      service: "teams",
+      data: {
+        id: tokenResponse.uniqueId,
+        accessToken: tokenResponse.accessToken,
+        teamName: tokenResponse.account.username,
+      },
+    };
+
+    if (
+      user.credentials &&
+      user.credentials.some(
+        (cred) =>
+          cred.service === "teams" && cred.data.id === credential.data.id
+      )
+    ) {
+      return res.status(400).json({
+        status: "error",
+        data: null,
+        message: "Teams account with ID already connected",
+      });
+    }
+
+    user.credentials.push(credential);
+    await user.save();
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: error.message,
+    });
+  }
+
+  console.log(user.credentials);
+  return res.status(200).json({
+    status: "success",
+    data: null,
+    message: `Successfully connected to Teams`,
+  });
+}
+
 router.post("/", async function (req, res, next) {
   if (req.user === undefined) {
     return res.status(401).json({
@@ -76,6 +150,9 @@ router.post("/", async function (req, res, next) {
   if (serviceName === "slack") {
     const { code } = req.body;
     return await connectSlack(req.user, code, res);
+  } else if (serviceName === "teams") {
+    const { code } = req.body;
+    return await connectTeams(req.user, code, res);
   } else {
     return res.status(400).json({
       status: "error",
