@@ -18,7 +18,9 @@ router.post("/", async function (req, res, next) {
 
       if (
         user.savedMessages.some(
-          (message) => message.reference === searchResult.reference
+          (message) =>
+            message.service === searchResult.service &&
+            message.id === searchResult.id
         )
       ) {
         res.status(400).json({
