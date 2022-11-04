@@ -39,7 +39,7 @@ const UserSchema = new mongoose.Schema({
   },
   lastSignIn: {
     type: Date,
-    required: true,
+    required: false,
   },
   isAdmin: {
     type: Boolean,
