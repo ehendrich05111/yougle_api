@@ -7,6 +7,7 @@ const fetch = require("node-fetch");
 const { convert } = require("html-to-text");
 
 async function getTeamsMessages(token, id, query) {
+  const startTime = new Date().getTime();
   const chats_response = await fetch(
     "https://graph.microsoft.com/v1.0/me/chats",
     {
@@ -74,6 +75,10 @@ async function getTeamsMessages(token, id, query) {
       });
     }
   }
+  const endTime = new Date().getTime();
+
+  const searchTime = endTime - startTime;
+  dogstatsd.timing("yougle.teams.search_time", searchTime);
   return filtered_messages;
 }
 
@@ -183,21 +188,23 @@ router.get("/", async function (req, res, next) {
   dogstatsd.distribution("yougle.search.results", messages.length);
 
   // update search history
-  try {
-    await User.updateOne(
-      {
-        _id: user._id,
-      },
-      {
-        $push: { history: { $each: [queryText], $slice: -100 } },
-      }
-    );
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      data: null,
-      message: `Error updating history: ${error.message}`,
-    });
+  if (user.settings.trackHistory) {
+    try {
+      await User.updateOne(
+        {
+          _id: user._id,
+        },
+        {
+          $push: { history: { $each: [queryText], $slice: -100 } },
+        }
+      );
+    } catch (error) {
+      return res.status(500).json({
+        status: "error",
+        data: null,
+        message: `Error updating history: ${error.message}`,
+      });
+    }
   }
 
   return res.status(200).json({

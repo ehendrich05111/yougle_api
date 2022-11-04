@@ -3,8 +3,9 @@ const mongoose = require("mongoose");
 const SettingsSchema = new mongoose.Schema(
   {
     trackHistory: {
-      type: Number,
+      type: Boolean,
       required: true,
+      default: true,
     },
     staySignedIn: {
       type: Boolean,
