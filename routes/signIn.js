@@ -2,6 +2,7 @@ var express = require("express");
 let userModel = require("../schemas/user");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { ConnectionStates } = require("mongoose");
 var router = express.Router();
 
 router.post("/", async function (req, res, next) {
