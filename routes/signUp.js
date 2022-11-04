@@ -40,7 +40,7 @@ router.post("/", async function (req, res, next) {
       lastSignIn: null,
       isAdmin: false,
       settings: Settings({
-        trackHistory: 0,
+        trackHistory: true,
         staySignedIn: false,
         deepSearch: true,
         darkMode: false,
