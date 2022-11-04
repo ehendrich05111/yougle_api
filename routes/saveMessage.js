@@ -33,7 +33,8 @@ router.post("/", async function (req, res, next) {
 
       const result = await userModel.updateOne(
         { _id: user._id },
-        { $push: { savedMessages: searchResult } }
+        { $push: { savedMessages: searchResult } },
+        { runValidators: true }
       );
       if (result.modifiedCount) {
         res

@@ -19,7 +19,6 @@ const SearchResultSchema = new mongoose.Schema({
   },
   reference: {
     type: String,
-    required: true,
   },
 });
 
