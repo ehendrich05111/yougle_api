@@ -37,7 +37,7 @@ router.post("/", async function (req, res, next) {
       history: [],
       credentials: [],
       accountCreated: creationDate,
-      lastSignIn: creationDate,
+      lastSignIn: null,
       isAdmin: false,
       settings: Settings({
         trackHistory: 0,
