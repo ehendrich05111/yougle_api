@@ -58,7 +58,7 @@ router.post("/", async function (req, res, next) {
       return;
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({
       status: "error",
       data: null,

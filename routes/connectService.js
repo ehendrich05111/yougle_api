@@ -133,7 +133,6 @@ async function connectTeams(user, code, res) {
     });
   }
 
-  console.log(user.credentials);
   return res.status(200).json({
     status: "success",
     data: null,

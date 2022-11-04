@@ -65,7 +65,7 @@ router.post("/requestReset", async function (req, res, next) {
         });
       })
       .catch((error) => {
-        console.log(error.response.body);
+        console.error(error.response.body);
         res.status(500).json({
           status: "failure",
           data: null,
@@ -140,7 +140,7 @@ router.post("/", async function (req, res, next) {
     });
     return;
   } catch (error) {
-    console.log(error.message);
+    console.error(error.message);
     res.status(500).json({
       status: "failure",
       data: null,
