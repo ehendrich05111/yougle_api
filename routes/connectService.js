@@ -22,7 +22,7 @@ const msalInstance = new msal.ConfidentialClientApplication(msalConfig);
 
 async function connectSlack(user, code, res) {
   try {
-    const redirect_uri =
+    const redirectUri =
       process.env.NODE_ENV === "production"
         ? "https%3a%2f%2fyougle.herokuapp.com%2fslack_callback"
         : "https%3a%2f%2fyougle.local.gd%3a3000%2fslack_callback";
@@ -31,7 +31,7 @@ async function connectSlack(user, code, res) {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: `client_id=${process.env.SLACK_CLIENT_ID}&client_secret=${process.env.SLACK_CLIENT_SECRET}&code=${code}&redirect_uri=${redirect_uri}`,
+      body: `client_id=${process.env.SLACK_CLIENT_ID}&client_secret=${process.env.SLACK_CLIENT_SECRET}&code=${code}&redirect_uri=${redirectUri}`,
     });
 
     const data = await response.json();
@@ -85,8 +85,12 @@ async function connectSlack(user, code, res) {
 }
 
 async function connectTeams(user, code, res) {
+  const redirectUri =
+    process.env.NODE_ENV === "production"
+      ? "https://yougle.herokuapp.com/teams_callback"
+      : "https://yougle.local.gd:3000/teams_callback";
   authCodeRequest = {
-    redirectUri: "https://yougle.local.gd:3000/teams_callback",
+    redirectUri: redirectUri,
     code: code,
     scopes: [
       "User.Read",
