@@ -54,7 +54,7 @@ class Test_Backend(unittest.TestCase):
         self.assertEqual(
             response.json()["data"],
             {
-                "trackHistory": 0,
+                "trackHistory": True,
                 "staySignedIn": False,
                 "deepSearch": True,
                 "darkMode": False,
@@ -78,12 +78,15 @@ class Test_Backend(unittest.TestCase):
         self.assertTrue(response.json()["message"].startswith("ValidationError"))
 
     def testSuccessPut(self):
-        response = self.session.put(self.base_url, {
-            "trackHistory": "1",
-            "staySignedIn": "true",
-            "deepSearch": "true",
-            "darkMode": "true",
-        })
+        response = self.session.put(
+            self.base_url,
+            {
+                "trackHistory": "true",
+                "staySignedIn": "true",
+                "deepSearch": "true",
+                "darkMode": "true",
+            },
+        )
         self.assertEqual(response.status_code, 200)
         user = self.collection.find_one({"email": self.TEST_USER_EMAIL})
         self.assertEqual(user["settings"]["darkMode"], True)
