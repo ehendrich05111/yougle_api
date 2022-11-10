@@ -129,7 +129,8 @@ router.get("/", async function (req, res, next) {
     });
   }
 
-  const { queryText } = req.query;
+  const { queryText, searchSlack, searchTeams } = req.query;
+
   if (!queryText) {
     return res.status(400).json({
       status: "error",
@@ -146,13 +147,13 @@ router.get("/", async function (req, res, next) {
     taskMessages = await Promise.all(
       user.credentials.map(async (cred, idx) => {
         try {
-          if (cred.service === "slack" && cred.isActive) {
+          if (cred.service === "slack" && cred.isActive && searchSlack === "true") {
             return await getSlackMessages(
               cred.data.accessToken,
               cred.data.teamName,
               queryText
             );
-          } else if (cred.service === "teams" && cred.isActive) {
+          } else if (cred.service === "teams" && cred.isActive && searchTeams === "true") {
             return await getTeamsMessages(
               cred.data.accessToken,
               cred.data.id,
