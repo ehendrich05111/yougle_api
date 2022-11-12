@@ -141,6 +141,96 @@ async function connectTeams(user, code, res) {
   });
 }
 
+async function connectReddit(user, code, res) {
+  try {
+    const redirect_uri =
+      process.env.NODE_ENV === "production"
+        ? "https%3a%2f%2fyougle.herokuapp.com%2freddit_callback"
+        : "https%3a%2f%2fyougle.local.gd%3a3000%2freddit_callback";
+
+    const authentication_string =
+      process.env.NODE_ENV === "production"
+        ? `Basic ${btoa(
+            `${process.env.REDDIT_PROD_CLIENT_ID}:${process.env.REDDIT_PROD_CLIENT_SECRET}`
+          )}`
+        : `Basic ${btoa(
+            `${process.env.REDDIT_DEV_CLIENT_ID}:${process.env.REDDIT_DEV_CLIENT_SECRET}`
+          )}`;
+    let response = await fetch("https://www.reddit.com/api/v1/access_token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: authentication_string,
+      },
+      body: `grant_type=authorization_code&code=${code}&redirect_uri=${redirect_uri}`,
+    });
+    const reddit_token_data = await response.json();
+
+    response = await fetch("https://oauth.reddit.com/api/v1/me", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `bearer ${reddit_token_data.access_token}`,
+      },
+    });
+    const user_reddit_data = await response.json();
+
+    const existing_account = user.credentials.find(
+      (credential) =>
+        credential.service === "reddit" &&
+        credential.data.name === user_reddit_data.name
+    );
+
+    if (existing_account) {
+      return res.status(400).json({
+        status: "failure",
+        data: null,
+        message: "The user has already connected with this Reddit Account",
+      });
+    }
+
+    const credential = {
+      isActive: true,
+      service: "reddit",
+      data: {
+        name: user_reddit_data.name,
+        access_token: reddit_token_data.access_token,
+        refresh_token: reddit_token_data.refresh_token,
+        last_refresh: new Date(),
+      },
+    };
+    user.credentials.push(credential);
+
+    const updated_user = await user.save();
+    const success = updated_user.credentials.find(
+      (credential) =>
+        credential.service === "reddit" &&
+        credential.data.name === user_reddit_data.name
+    );
+
+    if (success) {
+      return res.status(200).json({
+        status: "success",
+        data: null,
+        message: "Account added",
+      });
+    } else {
+      return res.status(500).json({
+        status: "failure",
+        data: null,
+        message: "Unable to save credentials to database",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: "failure",
+      message: "Something went wrong connecting to Reddit",
+      data: null,
+    });
+  }
+}
+
 router.post("/", async function (req, res, next) {
   if (req.user === undefined) {
     return res.status(401).json({
@@ -157,6 +247,9 @@ router.post("/", async function (req, res, next) {
   } else if (serviceName === "teams") {
     const { code } = req.body;
     return await connectTeams(req.user, code, res);
+  } else if (serviceName === "reddit") {
+    const { code } = req.body;
+    return await connectReddit(req.user, code, res);
   } else {
     return res.status(400).json({
       status: "error",
