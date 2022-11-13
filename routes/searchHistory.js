@@ -4,6 +4,60 @@ let userModel = require("../schemas/user");
 
 var router = express.Router();
 
+router.post("/deleteSingle", async function (req, res, next) {
+  try {
+    if (!req.user) {
+      return res.status(400).json({
+        status: "error",
+        data: null,
+        message: "Please login first!",
+      });
+    }
+
+    const { user } = req;
+    const { idx } = req.body;
+
+    if (!idx) {
+      return res.status(400).json({
+        status: "error",
+        data: null,
+        message: "No history element specified",
+      });
+    }
+
+    if (idx < 0 || idx >= user.history.length) {
+      return res.status(400).json({
+        status: "error",
+        data: null,
+        message: "Index out of range",
+      });
+    }
+
+    user.history.splice(idx, 1);
+    user.markModified("searchHistory");
+    await user.save((err, doc) => {
+      if (err) {
+        return res.status(500).json({
+          status: "error",
+          data: null,
+          message: "Error connecting to Database",
+        });
+      }
+      return res.status(200).json({
+        status: "success",
+        data: user.history,
+        message: "History item removed",
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: "Something unexplainable went wrong",
+    });
+  }
+});
+
 router.delete("/", async function (req, res, next) {
   try {
     if (!req.user) {
