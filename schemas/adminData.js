@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const adminDataSchema = new mongoose.Schema({
   name: {
@@ -7,13 +7,9 @@ const adminDataSchema = new mongoose.Schema({
   },
   slackSearchTimes: {
     type: Array,
-    required: false,
-  },
-  redditSearchTimes: {
-    type: Array,
-    required: false,
-  },
-});
+    required: false
+  }
+})
 
 const adminData = mongoose.model("adminData", adminDataSchema);
 

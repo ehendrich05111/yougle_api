@@ -15,7 +15,7 @@ router.get("/", async function (req, res, next) {
       isActive: credential.isActive,
       service: credential.service,
       _id: credential._id,
-      name: credential.data.teamName || credential.data.name,
+      name: credential.data.teamName,
     };
   });
 
