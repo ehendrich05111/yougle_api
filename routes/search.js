@@ -125,6 +125,113 @@ async function getSlackMessages(token, teamName, query) {
   });
 }
 
+async function getRedditMessages(redditData, user, idx, query) {
+  const startTime = new Date().getTime();
+
+  // slack tokens expire after an hour, so gotta refresh sometimes
+  const time_diff = new Date() - user.credentials[idx].data.last_refresh;
+  const time_diff_min = Math.floor(time_diff / 1000 / 60);
+  if (time_diff_min > 50) {
+    const authentication_string =
+      process.env.NODE_ENV === "production"
+        ? `Basic ${btoa(
+            `${process.env.REDDIT_PROD_CLIENT_ID}:${process.env.REDDIT_PROD_CLIENT_SECRET}`
+          )}`
+        : `Basic ${btoa(
+            `${process.env.REDDIT_DEV_CLIENT_ID}:${process.env.REDDIT_DEV_CLIENT_SECRET}`
+          )}`;
+    let response = await fetch("https://www.reddit.com/api/v1/access_token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: authentication_string,
+      },
+      body: `grant_type=refresh_token&refresh_token=${redditData.refresh_token}`,
+    });
+    const new_token_data = await response.json();
+    user.credentials[idx].data.access_token = new_token_data.access_token;
+    redditData.access_token = new_token_data.access_token;
+
+    // have to mark modified because mongoose and
+    // array changes just don't get along
+    user.markModified("credentials");
+    await user.save();
+  }
+
+  const response = await fetch("https://oauth.reddit.com/message/inbox", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `bearer ${redditData.access_token}`,
+    },
+  });
+
+  const response2 = await fetch("https://oauth.reddit.com/message/sent", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `bearer ${redditData.access_token}`,
+    },
+  });
+
+  const inbox_results = await response.json();
+  const sent_results = await response2.json();
+
+  let search_results = [];
+
+  inbox_results.data.children.forEach((message) => {
+    if (
+      message.data.body.includes(query) ||
+      message.data.subject.includes(query)
+    ) {
+      search_results.push({
+        id: message.data.id,
+        teamName: "Reddit Private Message",
+        text: `Subject: ${message.data.subject}\nMessage: ${message.data.body}`,
+        channel: `Private Message with ${message.data.author}`,
+        timestamp: message.data.created,
+        username: message.data.author,
+        permalink: `https://www.reddit.com/message/messages/${message.data.id}`,
+        service: "reddit",
+      });
+    }
+  });
+
+  sent_results.data.children.forEach((message) => {
+    if (
+      message.data.body.includes(query) ||
+      message.data.subject.includes(query)
+    ) {
+      search_results.push({
+        id: message.data.id,
+        teamName: "Reddit Private Message",
+        text: `Subject: ${message.data.subject}\nMessage: ${message.data.body}`,
+        channel: `Private Message with ${message.data.dest}`,
+        timestamp: message.data.created,
+        username: message.data.dest,
+        permalink: `https://www.reddit.com/message/messages/${message.data.id}`,
+        service: "reddit",
+      });
+    }
+  });
+
+  const endTime = new Date().getTime();
+
+  const searchTime = endTime - startTime;
+  dogstatsd.timing("yougle.slack.search_time", searchTime);
+
+  await adminDataModel.updateOne(
+    {
+      name: "data",
+    },
+    {
+      $push: { redditSearchTimes: searchTime },
+    }
+  );
+
+  return search_results;
+}
+
 router.get("/", async function (req, res, next) {
   if (req.user === undefined) {
     return res.status(401).json({
@@ -152,18 +259,28 @@ router.get("/", async function (req, res, next) {
     taskMessages = await Promise.all(
       user.credentials.map(async (cred, idx) => {
         try {
-          if (cred.service === "slack" && cred.isActive && searchSlack === "true") {
+          if (
+            cred.service === "slack" &&
+            cred.isActive &&
+            searchSlack === "true"
+          ) {
             return await getSlackMessages(
               cred.data.accessToken,
               cred.data.teamName,
               queryText
             );
-          } else if (cred.service === "teams" && cred.isActive && searchTeams === "true") {
+          } else if (
+            cred.service === "teams" &&
+            cred.isActive &&
+            searchTeams === "true"
+          ) {
             return await getTeamsMessages(
               cred.data.accessToken,
               cred.data.id,
               queryText
             );
+          } else if (cred.service === "reddit" && cred.isActive) {
+            return await getRedditMessages(cred.data, user, idx, queryText);
           }
         } catch (e) {
           throw new Error(
