@@ -15,9 +15,9 @@ router.post("/deleteSingle", async function (req, res, next) {
     }
 
     const { user } = req;
-    const { idx } = req.body;
+    const { idx } = req.body.index;
 
-    if (!idx) {
+    if (idx === null) {
       return res.status(400).json({
         status: "error",
         data: null,
