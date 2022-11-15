@@ -30,6 +30,7 @@ var changePasswordRouter = require("./routes/changePassword");
 var settingsRouter = require("./routes/settings");
 var getProfileRouter = require("./routes/getProfile");
 var deleteAccountRouter = require("./routes/deleteAccount");
+var getNumAccountsRouter = require("./routes/getNumAccounts");
 var app = express();
 
 var userModel = require("./schemas/user");
@@ -81,6 +82,8 @@ app.use(async function (req, res, next) {
       }
     );
   } else {
+    console.log("Wrong!!!!")
+    console.log(req.headers);
     req.user = undefined;
     next();
   }
@@ -106,6 +109,7 @@ app.use("/changePassword", changePasswordRouter);
 app.use("/settings", settingsRouter);
 app.use("/profile", getProfileRouter);
 app.use("/deleteAccount", deleteAccountRouter);
+app.use("/getNumAccounts", getNumAccountsRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
