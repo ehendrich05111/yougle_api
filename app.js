@@ -82,8 +82,6 @@ app.use(async function (req, res, next) {
       }
     );
   } else {
-    console.log("Wrong!!!!")
-    console.log(req.headers);
     req.user = undefined;
     next();
   }
