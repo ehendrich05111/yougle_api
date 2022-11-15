@@ -12,6 +12,13 @@ router.get("/", async function(req, res, next){
           message: "Please log in first!",
         });
     }
+    if(!req.user.isAdmin){
+        return res.status(402).json({
+            status: "error",
+            data: null,
+            message: "You must be an administrator to access this"
+        })
+    }
     try {
         const {start, end} = req.body;
         //start and end are seconds since the epoch
