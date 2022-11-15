@@ -186,9 +186,9 @@ async function getRedditMessages(redditData, user, idx, query) {
     ) {
       search_results.push({
         id: message.data.id,
-        teamName: "Reddit Private Message",
+        teamName: "Private Message",
         text: `Subject: ${message.data.subject}\nMessage: ${message.data.body}`,
-        channel: `Private Message`,
+        channel: `${message.data.author}`,
         timestamp: message.data.created,
         username: message.data.author,
         permalink: `https://www.reddit.com/message/messages/${message.data.id}`,
