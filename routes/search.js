@@ -188,7 +188,7 @@ async function getRedditMessages(redditData, user, idx, query) {
         id: message.data.id,
         teamName: "Reddit Private Message",
         text: `Subject: ${message.data.subject}\nMessage: ${message.data.body}`,
-        channel: `Private Message with ${message.data.author}`,
+        channel: `Private Message`,
         timestamp: message.data.created,
         username: message.data.author,
         permalink: `https://www.reddit.com/message/messages/${message.data.id}`,
