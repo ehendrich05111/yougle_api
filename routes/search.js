@@ -270,7 +270,7 @@ router.get("/reddit?", async function (req, res, next) {
     reddit_account_indeces.map(async (i) => {
       try {
         let reddit_data = user.credentials[i].data;
-        // slack tokens expire after an hour, so gotta refresh sometimes
+        // reddit tokens expire after an hour, so gotta refresh sometimes
         const time_diff = new Date() - user.credentials[i].data.last_refresh;
         const time_diff_min = Math.floor(time_diff / 1000 / 60);
         if (time_diff_min > 50) {
