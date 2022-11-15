@@ -62,3 +62,29 @@ class Test_Backend(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         user = self.collection.find_one({"email": self.TEST_USER_EMAIL})
         self.assertEqual(user["history"], [])
+
+    def testSingleNoIndex(self):
+        result = self.session.post(self.base_url + "deleteSingle/", {})
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json()["message"], "No history element specified")
+
+    def testSingleIndexLow(self):
+        result = self.session.post(self.base_url + "deleteSingle/", {"index": "-1"})
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json()["message"], "Index out of range")
+
+    def testSingleIndexHigh(self):
+        result = self.session.post(self.base_url + "deleteSingle/", {"index": "101"})
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json()["message"], "Index out of range")
+
+    def testSingleSuccess(self):
+        for i in range(5):
+            self.collection.update_one(
+                {"email": self.TEST_USER_EMAIL},
+                {"$push": {"history": "new entry" + str(i)}},
+            )
+        result = self.session.post(self.base_url + "deleteSingle/", {"index": "2"})
+        self.assertEqual(result.status_code, 200)
+        user = self.collection.find_one({"email": self.TEST_USER_EMAIL})
+        self.assertEqual(user["history"][2], "new entry3")
