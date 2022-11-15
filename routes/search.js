@@ -188,7 +188,7 @@ async function getRedditMessages(redditData, user, idx, query) {
         id: message.data.id,
         teamName: "Private Message",
         text: `Subject: ${message.data.subject}\nMessage: ${message.data.body}`,
-        channel: `${message.data.author}`,
+        channel: message.data.author,
         timestamp: message.data.created,
         username: message.data.author,
         permalink: `https://www.reddit.com/message/messages/${message.data.id}`,
@@ -204,9 +204,9 @@ async function getRedditMessages(redditData, user, idx, query) {
     ) {
       search_results.push({
         id: message.data.id,
-        teamName: "Reddit Private Message",
+        teamName: "Private Message",
         text: `Subject: ${message.data.subject}\nMessage: ${message.data.body}`,
-        channel: `Private Message with ${message.data.dest}`,
+        channel: message.data.dest,
         timestamp: message.data.created,
         username: message.data.dest,
         permalink: `https://www.reddit.com/message/messages/${message.data.id}`,
