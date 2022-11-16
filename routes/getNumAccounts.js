@@ -27,7 +27,7 @@ router.get("/", async function(req, res, next){
         //docs
 
         let numAccounts;
-        if(start !== undefined && end != undefined){
+        if(start !== undefined && end !== undefined){
             numAccounts = await userModel.countDocuments({
                 accountCreated: {
 
