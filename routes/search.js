@@ -151,7 +151,7 @@ router.get("/slack", async function (req, res, next) {
   const user = req.user;
   let slack_account_indeces = [];
   let messages = [];
-  const { queryText } = req.query;
+  const { queryText, getDirectMessages, getGroupMessages } = req.query;
   if (!queryText) {
     return res.status(400).json({
       status: "error",
@@ -190,17 +190,20 @@ router.get("/slack", async function (req, res, next) {
         if (!result.ok) {
           throw new Error("Error with Slack API");
         }
+
         result.messages.matches.map((match) => {
-          messages.push({
-            id: match.permalink,
-            teamName: teamName,
-            text: match.text,
-            channel: match.channel.name,
-            timestamp: parseInt(match.ts),
-            username: match.username,
-            permalink: match.permalink,
-            service: "slack",
-          });
+          if((match.channel.is_private && getDirectMessages === "true") || (!match.channel.is_private && getGroupMessages === "true")){
+            messages.push({
+              id: match.permalink,
+              teamName: teamName,
+              text: match.text,
+              channel: match.channel.name,
+              timestamp: parseInt(match.ts),
+              username: match.username,
+              permalink: match.permalink,
+              service: "slack",
+            });
+          }
         });
       } catch (e) {
         console.log(`Error with Slack API (service index ${i}): ${e.message}`);
