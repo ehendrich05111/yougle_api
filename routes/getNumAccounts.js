@@ -12,6 +12,9 @@ router.get("/", async function(req, res, next){
           message: "Please log in first!",
         });
     }
+
+
+    
     if(!req.user.isAdmin){
         return res.status(402).json({
             status: "error",
@@ -19,8 +22,10 @@ router.get("/", async function(req, res, next){
             message: "You must be an administrator to access this"
         })
     }
+    
+    
     try {
-        const {start, end} = req.body;
+        const {start, end} = req.query;
         //start and end are seconds since the epoch
         //if they are provided in the body, then we search between 
         //the start and end dates, otherwise we just return all
