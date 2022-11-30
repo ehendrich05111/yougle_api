@@ -53,9 +53,9 @@ class Test_Backend(unittest.TestCase):
         query1 = "testsearch1"
         query2 = "thequickbrownfoxjumpedoverthelazydog"
         query3 = "abracadabra"
-        self.session.get("http://localhost:9000/search?queryText=" + query1)
-        self.session.get("http://localhost:9000/search?queryText=" + query2)
-        self.session.get("http://localhost:9000/search?queryText=" + query3)
+        self.session.post("http://localhost:9000/searchHistory", {"query": query1})
+        self.session.post("http://localhost:9000/searchHistory", {"query": query2})
+        self.session.post("http://localhost:9000/searchHistory", {"query": query3})
         search_history = self.session.get("http://localhost:9000/searchHistory/")
         self.assertEqual(search_history.status_code, 200)
         search_history = search_history.json()
