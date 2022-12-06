@@ -45,83 +45,99 @@ router.get("/teams?", async function (req, res, next) {
   await Promise.all(
     teams_account_indeces.map(async (i) => {
       try {
-        let token = user.credentials[i].accessToken;
-        let id = user.credentials[i].id;
-        let chats_response = await fetch(
-          "https://graph.microsoft.com/v1.0/me/chats",
+        let token = user.credentials[i].data.accessToken;
+        let id = user.credentials[i].data.id;
+
+        const chats = await fetch(
+          "https://graph.microsoft.com/v1.0/search/query",
           {
-            method: "GET",
+            method: "POST",
             headers: {
+              "Content-Type": "application/json",
               Authorization: token,
             },
+            body: JSON.stringify({
+              requests: [
+                {
+                  entityTypes: ["chatMessage"],
+                  query: {
+                    queryString: queryText,
+                  },
+                },
+              ],
+            }),
           }
         );
-        let chats = await chats_response.json();
-        if (!chats_response.ok) {
-          if (chats.error.code === "InvalidAuthenticationToken") {
-            throw new Error(
-              "Expired token. You may need to re-add a token by going to the Add Services page."
-            );
-          }
-        }
-        for (let chat of chats.value) {
-          let chat_id = chat.id;
-          if (chat.chatType == "oneOnOne") {
-            let other_person = "";
-            let chat_members = await fetch(
-              "https://graph.microsoft.com/v1.0/me/chats/" +
-                chat_id +
-                "/members",
-              {
-                method: "GET",
-                headers: {
-                  Authorization: token,
-                },
+        const chatsData = await chats.json();
+        hits = chatsData.value[0].hitsContainers[0].hits;
+
+        await Promise.all(
+          hits.map(async (message) => {
+            const author = message.resource.from.emailAddress.name;
+            const { channelId, teamId } = message.resource.channelIdentity;
+
+            let channelName = "Unknown";
+            let webUrl = undefined;
+
+            // TODO: batch request for channel name
+            if (channelId && teamId) {
+              channel = await fetch(
+                `https://graph.microsoft.com/v1.0/teams/${teamId}/channels/${channelId}`,
+                {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              channelData = await channel.json();
+              channelName = channelData.displayName;
+              webUrl = channelData.webUrl;
+            } else if (channelId) {
+              channel = await fetch(
+                `https://graph.microsoft.com/v1.0/chats/${channelId}?$expand=members`,
+                {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              channelData = await channel.json();
+              webUrl = channelData.webUrl;
+              channelName = channelData.topic;
+              if (!channelName) {
+                channelName = `Private Message with ${channelData.members
+                  .map((member) => member.displayName)
+                  .join(", ")}`;
               }
-            );
-            let chat_members_json = await chat_members.json();
-            for (let chat_member of chat_members_json.value) {
-              //there are really only 2 people in a oneOnOne chat
-              if (chat_member.userId != id) {
-                other_person = chat_member.displayName;
-                break;
-              }
+            } else {
+              // no channel id or team id - notes with self
+              channelName = "You";
             }
 
-            const chat_messages = await fetch(
-              "https://graph.microsoft.com/v1.0/me/chats/" +
-                chat_id +
-                "/messages",
-              {
-                method: "GET",
-                headers: {
-                  Authorization: token,
-                },
-              }
-            );
-            let messages = await chat_messages.json();
-            messages.value.forEach((message) => {
-              if (
-                message.from !== null &&
-                message.body.content.includes(query)
-              ) {
-                author = message.from.user.displayName;
-                filtered_messages.push({
-                  id: message.id,
-                  teamName: "Microsoft Teams",
-                  text: convert(message.body.content),
-                  channel: "Private Chat with " + other_person,
-                  timestamp: Date.parse(message.createdDateTime) / 1000,
-                  username: message.from.user.displayName,
-                  permalink: message.webUrl,
-                  service: "teams",
-                });
-              }
+            filtered_messages.push({
+              id: message.hitId,
+              teamName: "Microsoft Teams",
+              text: message.summary,
+              channel: channelName,
+              timestamp: Date.parse(message.resource.createdDateTime) / 1000,
+              username: author,
+              permalink: webUrl,
+              service: "teams",
             });
-          }
-        }
+          })
+        );
       } catch (e) {
         console.log(`Error with Teams API (service index ${i}): ${e.message}`);
+
+        return res.status(500).json({
+          status: "error",
+          data: null,
+          message: `Error with Teams API: ${e.message}`,
+        });
       }
     })
   );
@@ -192,7 +208,10 @@ router.get("/slack", async function (req, res, next) {
         }
 
         result.messages.matches.map((match) => {
-          if((match.channel.is_private && getDirectMessages === "true") || (!match.channel.is_private && getGroupMessages === "true")){
+          if (
+            (match.channel.is_private && getDirectMessages === "true") ||
+            (!match.channel.is_private && getGroupMessages === "true")
+          ) {
             messages.push({
               id: match.permalink,
               teamName: teamName,
