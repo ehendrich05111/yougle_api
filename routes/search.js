@@ -130,10 +130,7 @@ router.get("/teams?", async function (req, res, next) {
 
         for ({ id, status: respStatus, body } of batchResponses) {
           if (respStatus !== 200) {
-            console.error(
-              `Error in batch request ${id}} (${respStatus})`,
-              body
-            );
+            console.error(`Error in batch request ${id} (${respStatus})`, body);
             continue;
           }
 
