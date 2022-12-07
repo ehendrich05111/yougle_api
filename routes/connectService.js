@@ -6,7 +6,8 @@ const router = express.Router();
 const msalConfig = {
   auth: {
     clientId: process.env.TEAMS_APP_ID,
-    authority: "https://login.microsoftonline.com/common", // + process.env.TEAMS_TENANT_ID,
+    authority:
+      "https://login.microsoftonline.com/" + process.env.TEAMS_TENANT_ID,
     clientSecret: process.env.TEAMS_APP_SECRET_VALUE,
   },
   loggerOptions: {
