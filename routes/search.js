@@ -44,129 +44,131 @@ router.get("/teams?", async function (req, res, next) {
 
   await Promise.all(
     teams_account_indeces.map(async (i) => {
-      try {
-        let token = user.credentials[i].data.accessToken;
-        let id = user.credentials[i].data.id;
+      let token = user.credentials[i].data.accessToken;
+      let id = user.credentials[i].data.id;
 
-        const chats = await fetch(
-          "https://graph.microsoft.com/v1.0/search/query",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: token,
-            },
-            body: JSON.stringify({
-              requests: [
-                {
-                  entityTypes: ["chatMessage"],
-                  query: {
-                    queryString: queryText,
-                  },
+      const chats = await fetch(
+        "https://graph.microsoft.com/v1.0/search/query",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                entityTypes: ["chatMessage"],
+                query: {
+                  queryString: queryText,
                 },
-              ],
-            }),
-          }
-        );
-        const chatsData = await chats.json();
-        hits = chatsData.value[0].hitsContainers[0].hits;
-
-        newMessages = hits.map((hit) => ({
-          id: hit.hitId,
-          teamName: "Microsoft Teams",
-          timestamp: Date.parse(hit.resource.createdDateTime) / 1000,
-          username: hit.resource.from.emailAddress.name,
-          service: "teams",
-          text: hit.summary,
-          // no channel id or team id - notes with self
-          channel: "You",
-          permalink: null,
-          files: [],
-        }));
-
-        // batch requests for channel name, permalink, and files
-        requests = hits.flatMap((hit, idx) => {
-          // `https://graph.microsoft.com/v1.0/chats/${message.resource.chatId}/messages/${message.resource.id}`,
-          const { channelId, teamId } = hit.resource.channelIdentity;
-          const ans = [
-            {
-              id: `${idx}-msg`,
-              method: "GET",
-              url: `/chats/${hit.resource.chatId}/messages/${hit.resource.id}`,
-            },
-          ];
-          if (channelId && teamId) {
-            ans.push({
-              id: `${idx}-teamChannel`,
-              method: "GET",
-              url: `/teams/${teamId}/channels/${channelId}`,
-            });
-          } else if (channelId) {
-            ans.push({
-              id: `${idx}-channel`,
-              method: "GET",
-              url: `/chats/${channelId}?$expand=members`,
-            });
-          }
-
-          return ans;
-        });
-
-        const batchResponses = [];
-        // split every 20 requests into a new batch due to batch API limits
-        for (let i = 0; i < requests.length; i += 20) {
-          const batch = await fetch("https://graph.microsoft.com/v1.0/$batch", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ requests: requests.slice(i, i + 20) }),
-          });
-
-          const batchData = await batch.json();
-          batchResponses.push(...batchData.responses);
+              },
+            ],
+          }),
         }
-
-        for ({ id, status: respStatus, body } of batchResponses) {
-          if (respStatus !== 200) {
-            console.error(`Error in batch request ${id} (${respStatus})`, body);
-            continue;
-          }
-
-          const idx = parseInt(id.split("-")[0]);
-          const type = id.split("-")[1];
-          if (type === "msg") {
-            newMessages[idx].text = convert(body.body.content);
-            newMessages[idx].files = body.attachments.map((attachment) => ({
-              name: attachment.name,
-              url: attachment.contentUrl,
-            }));
-          } else if (type === "teamChannel") {
-            newMessages[idx].channel = body.displayName;
-            newMessages[idx].permalink = body.webUrl;
-          } else if (type === "channel") {
-            newMessages[idx].channel =
-              body.topic ||
-              `Private Message with ${body.members
-                .map((member) => member.displayName)
-                .join(", ")}`;
-            newMessages[idx].permalink = body.webUrl;
-          }
-        }
-
-        filtered_messages = filtered_messages.concat(newMessages);
-      } catch (e) {
-        console.log(`Error with Teams API (service index ${i}): ${e.message}`);
-
-        return res.status(500).json({
-          status: "error",
-          data: null,
-          message: `Error with Teams API: ${e.message}`,
-        });
+      );
+      const chatsData = await chats.json();
+      hits = chatsData.value[0].hitsContainers[0].hits;
+      if (!hits) {
+        console.error("Failed to find hits in response");
+        console.error(chatsData);
+        return;
       }
+
+      newMessages = hits.map((hit) => ({
+        id: hit.hitId,
+        teamName: "Microsoft Teams",
+        timestamp: Date.parse(hit.resource.createdDateTime) / 1000,
+        username: hit.resource.from.emailAddress.name,
+        service: "teams",
+        text: hit.summary,
+        // no channel id or team id - notes with self
+        channel: "You",
+        permalink: null,
+        files: [],
+      }));
+
+      // batch requests for channel name, permalink, and files
+      requests = hits.flatMap((hit, idx) => {
+        const { channelId, teamId } = hit.resource.channelIdentity;
+        const ans = [
+          {
+            id: `${idx}-msg`,
+            method: "GET",
+            url: `/chats/${hit.resource.chatId}/messages/${hit.resource.id}`,
+          },
+        ];
+        if (channelId && teamId) {
+          ans.push({
+            id: `${idx}-teamChannel`,
+            method: "GET",
+            url: `/teams/${teamId}/channels/${channelId}`,
+          });
+        } else if (channelId) {
+          ans.push({
+            id: `${idx}-channel`,
+            method: "GET",
+            url: `/chats/${channelId}?$expand=members`,
+          });
+        }
+
+        return ans;
+      });
+
+      const batchResponses = [];
+      // split every 20 requests into a new batch due to batch API limits
+      for (let i = 0; i < requests.length; i += 20) {
+        const batch = await fetch("https://graph.microsoft.com/v1.0/$batch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ requests: requests.slice(i, i + 20) }),
+        });
+
+        const batchData = await batch.json();
+        batchResponses.push(...batchData.responses);
+      }
+
+      for ({ id, status: respStatus, body } of batchResponses) {
+        if (respStatus !== 200) {
+          console.error(`Error in batch request ${id} (${respStatus})`, body);
+          continue;
+        }
+
+        const idx = parseInt(id.split("-")[0]);
+        const type = id.split("-")[1];
+        if (type === "msg") {
+          newMessages[idx].text = convert(body.body.content);
+          newMessages[idx].files = body.attachments.map((attachment) => ({
+            name: attachment.name,
+            url: attachment.contentUrl,
+          }));
+        } else if (type === "teamChannel") {
+          newMessages[idx].channel = body.displayName;
+          newMessages[idx].permalink = body.webUrl;
+        } else if (type === "channel") {
+          newMessages[idx].channel =
+            body.topic ||
+            `Private Message with ${body.members
+              .map((member) => member.displayName)
+              .join(", ")}`;
+          newMessages[idx].permalink = body.webUrl;
+        }
+      }
+
+      filtered_messages = filtered_messages.concat(newMessages);
     })
-  );
+  ).catch((e) => {
+    console.error(`Error with Teams API: ${e.message}`);
+
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: `Error with Teams API: ${e.message}`,
+    });
+  });
   const endTime = new Date().getTime();
 
   const searchTime = endTime - startTime;
