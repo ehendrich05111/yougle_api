@@ -53,11 +53,16 @@ router.get("/accounts", async function (req, res, next) {
 
     let numAccounts;
     if (from !== undefined || to !== undefined) {
+      const query = {};
+      if (from) {
+        query.$gte = new Date(from * 1000);
+      }
+      if (to) {
+        query.$lte = new Date(to * 1000);
+      }
+
       numAccounts = await User.countDocuments({
-        accountCreated: {
-          $gte: from ? new Date(from * 1000) : undefined,
-          $lte: to ? new Date(to * 1000) : undefined,
-        },
+        accountCreated: query,
       });
     } else {
       numAccounts = await User.countDocuments();
