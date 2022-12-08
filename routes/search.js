@@ -42,9 +42,9 @@ router.get("/teams?", async function (req, res, next) {
   }
   const startTime = new Date().getTime();
 
-  await Promise.all(
-    teams_account_indeces.map(async (i) => {
-      try {
+  try {
+    await Promise.all(
+      teams_account_indeces.map(async (i) => {
         let token = user.credentials[i].data.accessToken;
         let id = user.credentials[i].data.id;
 
@@ -69,7 +69,16 @@ router.get("/teams?", async function (req, res, next) {
           }
         );
         const chatsData = await chats.json();
+        if (chatsData.error) {
+          throw new Error(chatsData.error.message);
+        }
+
         hits = chatsData.value[0].hitsContainers[0].hits;
+        if (!hits) {
+          console.error("Failed to find hits in response");
+          console.error(chatsData);
+          return;
+        }
 
         newMessages = hits.map((hit) => ({
           id: hit.hitId,
@@ -86,7 +95,6 @@ router.get("/teams?", async function (req, res, next) {
 
         // batch requests for channel name, permalink, and files
         requests = hits.flatMap((hit, idx) => {
-          // `https://graph.microsoft.com/v1.0/chats/${message.resource.chatId}/messages/${message.resource.id}`,
           const { channelId, teamId } = hit.resource.channelIdentity;
           const ans = [
             {
@@ -130,10 +138,7 @@ router.get("/teams?", async function (req, res, next) {
 
         for ({ id, status: respStatus, body } of batchResponses) {
           if (respStatus !== 200) {
-            console.error(
-              `Error in batch request ${id}} (${respStatus})`,
-              body
-            );
+            console.error(`Error in batch request ${id} (${respStatus})`, body);
             continue;
           }
 
@@ -159,17 +164,17 @@ router.get("/teams?", async function (req, res, next) {
         }
 
         filtered_messages = filtered_messages.concat(newMessages);
-      } catch (e) {
-        console.log(`Error with Teams API (service index ${i}): ${e.message}`);
+      })
+    );
+  } catch (e) {
+    console.error(`Error with Teams API: ${e.message}`);
 
-        return res.status(500).json({
-          status: "error",
-          data: null,
-          message: `Error with Teams API: ${e.message}`,
-        });
-      }
-    })
-  );
+    return res.status(500).json({
+      status: "error",
+      data: null,
+      message: `Error with Teams API: ${e.message}`,
+    });
+  }
   const endTime = new Date().getTime();
 
   const searchTime = endTime - startTime;
