@@ -85,7 +85,7 @@ class Test_Backend(unittest.TestCase):
 
     def testQueryParams(self):
         response = self.session.get(
-            self.base_url + "admin/accounts?start=1667534400&end=1668643013"
+            self.base_url + "admin/accounts?from=1667534400&to=1668643013"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -95,7 +95,7 @@ class Test_Backend(unittest.TestCase):
 
     def testMalformedQuery(self):
         response = self.session.get(
-            self.base_url + "admin/accounts?start=1667534400&e33iijnd=1668643013"
+            self.base_url + "admin/accounts?from=1667534400&e33iijnd=1668643013"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(

@@ -45,18 +45,18 @@ router.get("/accounts", async function (req, res, next) {
   }
 
   try {
-    const { start, end } = req.query;
-    //start and end are seconds since the epoch
+    const { from, to } = req.query;
+    //from and to are seconds since the epoch
     //if they are provided in the body, then we search between
     //the start and end dates, otherwise we just return all
     //docs
 
     let numAccounts;
-    if (start !== undefined || end !== undefined) {
+    if (from !== undefined || to !== undefined) {
       numAccounts = await User.countDocuments({
         accountCreated: {
-          $gte: start ? new Date(start * 1000) : undefined,
-          $lte: end ? new Date(end * 1000) : undefined,
+          $gte: from ? new Date(from * 1000) : undefined,
+          $lte: to ? new Date(to * 1000) : undefined,
         },
       });
     } else {
