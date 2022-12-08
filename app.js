@@ -30,7 +30,6 @@ var changePasswordRouter = require("./routes/changePassword");
 var settingsRouter = require("./routes/settings");
 var getProfileRouter = require("./routes/getProfile");
 var deleteAccountRouter = require("./routes/deleteAccount");
-var getNumAccountsRouter = require("./routes/getNumAccounts");
 var adminRouter = require("./routes/admin");
 var app = express();
 
@@ -108,7 +107,6 @@ app.use("/changePassword", changePasswordRouter);
 app.use("/settings", settingsRouter);
 app.use("/profile", getProfileRouter);
 app.use("/deleteAccount", deleteAccountRouter);
-app.use("/getNumAccounts", getNumAccountsRouter);
 app.use("/admin", adminRouter);
 
 // catch 404 and forward to error handler

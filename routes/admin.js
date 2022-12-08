@@ -40,37 +40,42 @@ router.get("/accounts", async function (req, res, next) {
     return res.status(401).json({
       status: "error",
       data: null,
-      message: "You must be an administrator to access this page.",
+      message: "You must be an administrator to access this",
     });
   }
 
-  const { from, to } = req.query;
-  if ((from && isNaN(parseInt(from))) || (to && isNaN(parseInt(to)))) {
-    return res.status(400).json({
+  try {
+    const { start, end } = req.query;
+    //start and end are seconds since the epoch
+    //if they are provided in the body, then we search between
+    //the start and end dates, otherwise we just return all
+    //docs
+
+    let numAccounts;
+    if (start !== undefined || end !== undefined) {
+      numAccounts = await User.countDocuments({
+        accountCreated: {
+          $gte: start ? new Date(start * 1000) : undefined,
+          $lte: end ? new Date(end * 1000) : undefined,
+        },
+      });
+    } else {
+      numAccounts = await User.countDocuments();
+    }
+
+    return res.status(200).json({
+      status: "success",
+      data: numAccounts,
+      message: "Successfully retrieved the number of accounts",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
       status: "error",
       data: null,
-      message: "Invalid from/to timestamps",
+      message: "Unknown error",
     });
   }
-
-  const query = {};
-  if (from || to) {
-    query.accountCreated = {};
-    if (from) {
-      query.accountCreated.$gte = new Date(parseInt(from) * 1000);
-    }
-    if (to) {
-      query.accountCreated.$lte = new Date(parseInt(to) * 1000);
-    }
-  }
-
-  const accounts = await User.find(query).count();
-
-  return res.status(200).json({
-    status: "success",
-    data: accounts,
-    message: null,
-  });
 });
 
 router.get("/active", async function (req, res, next) {
@@ -110,7 +115,7 @@ router.get("/active", async function (req, res, next) {
     }
   }
 
-  const lastSignIns = await User.find(query).count();
+  const lastSignIns = await User.countDocuments(query);
 
   return res.status(200).json({
     status: "success",

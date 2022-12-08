@@ -18,17 +18,27 @@ class Test_Backend(unittest.TestCase):
         self.base_url = "http://localhost:9000/"
         connectionString = config("CONNECTION_STRING")
         client = pymongo.MongoClient(connectionString)
-        db = client['test']
-        self.collection = db['users']
+        db = client["test"]
+        self.collection = db["users"]
 
         self.session = requests.Session()
-        self.session.post("http://localhost:9000/signup", {"email": self.TEST_USER_EMAIL,
-                          "password": self.TEST_USER_PASSWORD, "firstName": "firstname5", "lastName": "lastname5"})
+        self.session.post(
+            "http://localhost:9000/signup",
+            {
+                "email": self.TEST_USER_EMAIL,
+                "password": self.TEST_USER_PASSWORD,
+                "firstName": "firstname5",
+                "lastName": "lastname5",
+            },
+        )
         self.collection.update_one(
-            {"email": self.TEST_USER_EMAIL}, {"$set": {"isAdmin": True}})  # make the user an admin
+            {"email": self.TEST_USER_EMAIL}, {"$set": {"isAdmin": True}}
+        )  # make the user an admin
 
-        resp = self.session.post("http://localhost:9000/signIn",
-                                 {"email": self.TEST_USER_EMAIL, "password": self.TEST_USER_PASSWORD})
+        resp = self.session.post(
+            "http://localhost:9000/signIn",
+            {"email": self.TEST_USER_EMAIL, "password": self.TEST_USER_PASSWORD},
+        )
         token = resp.json()["data"]["token"]
         self.session.headers.update({"Authorization": "JWT " + token})
 
@@ -42,37 +52,52 @@ class Test_Backend(unittest.TestCase):
         nonadmin_session = requests.Session()
 
         # create non admin user
-        nonadmin_session.post("http://localhost:9000/signup", {"email": "iamnotadmin@gmail.com",
-                                                               "password": self.TEST_USER_PASSWORD, "firstName": "firstname5", "lastName": "lastname5"})
-        resp = nonadmin_session.post("http://localhost:9000/signIn",
-                                     {"email": "iamnotadmin@gmail.com", "password": self.TEST_USER_PASSWORD})
+        nonadmin_session.post(
+            "http://localhost:9000/signup",
+            {
+                "email": "iamnotadmin@gmail.com",
+                "password": self.TEST_USER_PASSWORD,
+                "firstName": "firstname5",
+                "lastName": "lastname5",
+            },
+        )
+        resp = nonadmin_session.post(
+            "http://localhost:9000/signIn",
+            {"email": "iamnotadmin@gmail.com", "password": self.TEST_USER_PASSWORD},
+        )
         token = resp.json()["data"]["token"]
         nonadmin_session.headers.update({"Authorization": "JWT " + token})
 
-        response = nonadmin_session.get(self.base_url + "getNumAccounts")
-        self.assertEqual(response.status_code, 402)
+        response = nonadmin_session.get(self.base_url + "admin/accounts")
+        self.assertEqual(response.status_code, 401)
         self.assertEqual(
-            response.json()["message"], "You must be an administrator to access this")
+            response.json()["message"], "You must be an administrator to access this"
+        )
         self.collection.delete_one({"email": "iamnotadmin@gmail.com"})
         nonadmin_session.close()
 
     def testNoQueryParams(self):
-        response = self.session.get(self.base_url + "getNumAccounts")
+        response = self.session.get(self.base_url + "admin/accounts")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()["message"], "Successfully retrieved the number of accounts")
+            response.json()["message"], "Successfully retrieved the number of accounts"
+        )
 
     def testQueryParams(self):
         response = self.session.get(
-            self.base_url + "getNumAccounts?start=1667534400&end=1668643013")
+            self.base_url + "admin/accounts?start=1667534400&end=1668643013"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()["message"], "Successfully retrieved the number of accounts")
+            response.json()["message"], "Successfully retrieved the number of accounts"
+        )
         self.assertEqual(response.json()["data"], 12)
 
     def testMalformedQuery(self):
         response = self.session.get(
-            self.base_url + "getNumAccounts?start=1667534400&e33iijnd=1668643013")
+            self.base_url + "admin/accounts?start=1667534400&e33iijnd=1668643013"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()["message"], "Successfully retrieved the number of accounts")
+            response.json()["message"], "Successfully retrieved the number of accounts"
+        )
