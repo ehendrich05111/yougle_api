@@ -71,65 +71,94 @@ router.get("/teams?", async function (req, res, next) {
         const chatsData = await chats.json();
         hits = chatsData.value[0].hitsContainers[0].hits;
 
-        await Promise.all(
-          hits.map(async (message) => {
-            const author = message.resource.from.emailAddress.name;
-            const { channelId, teamId } = message.resource.channelIdentity;
+        newMessages = hits.map((hit) => ({
+          id: hit.hitId,
+          teamName: "Microsoft Teams",
+          timestamp: Date.parse(hit.resource.createdDateTime) / 1000,
+          username: hit.resource.from.emailAddress.name,
+          service: "teams",
+          text: hit.summary,
+          // no channel id or team id - notes with self
+          channel: "You",
+          permalink: null,
+          files: [],
+        }));
 
-            let channelName = "Unknown";
-            let webUrl = undefined;
-
-            // TODO: batch request for channel name
-            if (channelId && teamId) {
-              channel = await fetch(
-                `https://graph.microsoft.com/v1.0/teams/${teamId}/channels/${channelId}`,
-                {
-                  method: "GET",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-              channelData = await channel.json();
-              channelName = channelData.displayName;
-              webUrl = channelData.webUrl;
-            } else if (channelId) {
-              channel = await fetch(
-                `https://graph.microsoft.com/v1.0/chats/${channelId}?$expand=members`,
-                {
-                  method: "GET",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-              channelData = await channel.json();
-              webUrl = channelData.webUrl;
-              channelName = channelData.topic;
-              if (!channelName) {
-                channelName = `Private Message with ${channelData.members
-                  .map((member) => member.displayName)
-                  .join(", ")}`;
-              }
-            } else {
-              // no channel id or team id - notes with self
-              channelName = "You";
-            }
-
-            filtered_messages.push({
-              id: message.hitId,
-              teamName: "Microsoft Teams",
-              text: message.summary,
-              channel: channelName,
-              timestamp: Date.parse(message.resource.createdDateTime) / 1000,
-              username: author,
-              permalink: webUrl,
-              service: "teams",
+        // batch requests for channel name, permalink, and files
+        requests = hits.flatMap((hit, idx) => {
+          // `https://graph.microsoft.com/v1.0/chats/${message.resource.chatId}/messages/${message.resource.id}`,
+          const { channelId, teamId } = hit.resource.channelIdentity;
+          const ans = [
+            {
+              id: `${idx}-msg`,
+              method: "GET",
+              url: `/chats/${hit.resource.chatId}/messages/${hit.resource.id}`,
+            },
+          ];
+          if (channelId && teamId) {
+            ans.push({
+              id: `${idx}-teamChannel`,
+              method: "GET",
+              url: `/teams/${teamId}/channels/${channelId}`,
             });
-          })
-        );
+          } else if (channelId) {
+            ans.push({
+              id: `${idx}-channel`,
+              method: "GET",
+              url: `/chats/${channelId}?$expand=members`,
+            });
+          }
+
+          return ans;
+        });
+
+        const batchResponses = [];
+        // split every 20 requests into a new batch due to batch API limits
+        for (let i = 0; i < requests.length; i += 20) {
+          const batch = await fetch("https://graph.microsoft.com/v1.0/$batch", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ requests: requests.slice(i, i + 20) }),
+          });
+
+          const batchData = await batch.json();
+          batchResponses.push(...batchData.responses);
+        }
+
+        for ({ id, status: respStatus, body } of batchResponses) {
+          if (respStatus !== 200) {
+            console.error(
+              `Error in batch request ${id}} (${respStatus})`,
+              body
+            );
+            continue;
+          }
+
+          const idx = parseInt(id.split("-")[0]);
+          const type = id.split("-")[1];
+          if (type === "msg") {
+            newMessages[idx].text = convert(body.body.content);
+            newMessages[idx].files = body.attachments.map((attachment) => ({
+              name: attachment.name,
+              url: attachment.contentUrl,
+            }));
+          } else if (type === "teamChannel") {
+            newMessages[idx].channel = body.displayName;
+            newMessages[idx].permalink = body.webUrl;
+          } else if (type === "channel") {
+            newMessages[idx].channel =
+              body.topic ||
+              `Private Message with ${body.members
+                .map((member) => member.displayName)
+                .join(", ")}`;
+            newMessages[idx].permalink = body.webUrl;
+          }
+        }
+
+        filtered_messages = filtered_messages.concat(newMessages);
       } catch (e) {
         console.log(`Error with Teams API (service index ${i}): ${e.message}`);
 
@@ -221,6 +250,12 @@ router.get("/slack", async function (req, res, next) {
               username: match.username,
               permalink: match.permalink,
               service: "slack",
+              files: !match.files
+                ? []
+                : match.files.map(({ name, url_private_download }) => ({
+                    name: name,
+                    url: url_private_download,
+                  })),
             });
           }
         });
